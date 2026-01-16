@@ -24,6 +24,13 @@ class FloodFillImage extends StatefulWidget {
   /// <br>Default value is 8.
   final int tolerance;
 
+  /// Brightness threshold for flood fill (0-255).
+  /// Pixels with brightness below this value are considered "dark" and will be:
+  /// - Rejected when tapped (no fill starts)
+  /// - Not filled into (fill stops at dark boundaries)
+  /// <br>Default value is 128 (mid-gray).
+  final int brightnessThreshold;
+
   /// Width of the image.
   /// Parent widget width will be prioritize if it's provided and less than the image width.
   final int? width;
@@ -41,26 +48,27 @@ class FloodFillImage extends StatefulWidget {
 
   /// Callback function that returns the touch position and an [Image] from *dart:ui* when flood fill starts.
   /// <br>**Note:** Touch coordinate is relative to the image dimension.
-  final Function(Offset position,ui.Image image)? onFloodFillStart;
+  final Function(Offset position, ui.Image image)? onFloodFillStart;
 
   /// Callback function that returns an [Image] from *dart:ui* when flood fill ended.
   final Function(ui.Image image)? onFloodFillEnd;
 
   /// Flutter widget that can use paint bucket functionality on the provided image.
-  const FloodFillImage(
-      {Key? key,
-      required this.imageProvider,
-      required this.fillColor,
-      this.isFillActive = true,
-      this.avoidColor,
-      this.tolerance = 8,
-      this.width,
-      this.height,
-      this.alignment,
-      this.loadingWidget,
-      this.onFloodFillStart,
-      this.onFloodFillEnd})
-      : super(key: key);
+  const FloodFillImage({
+    Key? key,
+    required this.imageProvider,
+    required this.fillColor,
+    this.isFillActive = true,
+    this.avoidColor,
+    this.tolerance = 8,
+    this.brightnessThreshold = 128,
+    this.width,
+    this.height,
+    this.alignment,
+    this.loadingWidget,
+    this.onFloodFillStart,
+    this.onFloodFillEnd,
+  }) : super(key: key);
 
   @override
   _FloodFillImageState createState() => _FloodFillImageState();
@@ -101,7 +109,9 @@ class _FloodFillImageState extends State<FloodFillImage> {
 
   void _getImage() {
     final ImageStream? oldImageStream = _imageStream;
-    _imageStream = _imageProvider?.resolve(createLocalImageConfiguration(context));
+    _imageStream = _imageProvider?.resolve(
+      createLocalImageConfiguration(context),
+    );
     if (_imageStream?.key != oldImageStream?.key) {
       final ImageStreamListener listener = ImageStreamListener(_updateImage);
       oldImageStream?.removeListener(listener);
@@ -115,16 +125,17 @@ class _FloodFillImageState extends State<FloodFillImage> {
     _height = _imageInfo?.image.height.toDouble();
     _repainter = ValueNotifier("");
     _painter = FloodFillPainter(
-        image: _imageInfo!.image,
-        fillColor: widget.fillColor,
-        notifier: _repainter,
-        onFloodFillStart: widget.onFloodFillStart,
-        onFloodFillEnd: widget.onFloodFillEnd,
-        onInitialize: () {
-          setState(() {
-            //make sure painter is properly initialize
-          });
+      image: _imageInfo!.image,
+      fillColor: widget.fillColor,
+      notifier: _repainter,
+      onFloodFillStart: widget.onFloodFillStart,
+      onFloodFillEnd: widget.onFloodFillEnd,
+      onInitialize: () {
+        setState(() {
+          //make sure painter is properly initialize
         });
+      },
+    );
   }
 
   @override
@@ -136,41 +147,49 @@ class _FloodFillImageState extends State<FloodFillImage> {
   @override
   Widget build(BuildContext context) {
     if (_painter != null) {
-      _painter?.setFillColor(widget.fillColor); //incase we want to update fillColor
+      _painter?.setFillColor(
+        widget.fillColor,
+      ); //incase we want to update fillColor
       _painter?.setAvoidColor(widget.avoidColor!);
       _painter?.setTolerance(widget.tolerance);
+      _painter?.setBrightnessThreshold(widget.brightnessThreshold);
       _painter?.setIsFillActive(widget.isFillActive);
     }
     return (_imageInfo != null)
-        ? LayoutBuilder(builder: (context, BoxConstraints constraints) {
-            double w = _width!;
-            double h = _height!;
-            if (!constraints.maxWidth.isInfinite) {
-              if (constraints.maxWidth < _width!) {
-                w = constraints.maxWidth;
+        ? LayoutBuilder(
+            builder: (context, BoxConstraints constraints) {
+              double w = _width!;
+              double h = _height!;
+              if (!constraints.maxWidth.isInfinite) {
+                if (constraints.maxWidth < _width!) {
+                  w = constraints.maxWidth;
+                }
               }
-            }
 
-            if (!constraints.maxHeight.isInfinite) {
-              if (constraints.maxHeight < _height!) {
-                h = constraints.maxHeight;
+              if (!constraints.maxHeight.isInfinite) {
+                if (constraints.maxHeight < _height!) {
+                  h = constraints.maxHeight;
+                }
               }
-            }
 
-            // print(" constraint max width " + constraints.maxWidth.toString());
-            // print(" constraint max height " + constraints.maxHeight.toString());
-            // print(" w " + w.toString());
-            // print(" h " + h.toString());
+              // print(" constraint max width " + constraints.maxWidth.toString());
+              // print(" constraint max height " + constraints.maxHeight.toString());
+              // print(" w " + w.toString());
+              // print(" h " + h.toString());
 
-            _painter!.setSize(Size(w, h));
-            return (widget.alignment == null)
-                ? RepaintBoundary(child: CustomPaint(painter: _painter, size: Size(w, h)))
-                : Align(
-                    alignment: widget.alignment!,
-                    child: CustomPaint(painter: _painter, size: Size(w, h)));
-          })
+              _painter!.setSize(Size(w, h));
+              return (widget.alignment == null)
+                  ? RepaintBoundary(
+                      child: CustomPaint(painter: _painter, size: Size(w, h)),
+                    )
+                  : Align(
+                      alignment: widget.alignment!,
+                      child: CustomPaint(painter: _painter, size: Size(w, h)),
+                    );
+            },
+          )
         : (widget.loadingWidget == null)
-            ? CircularProgressIndicator()
-            : widget.loadingWidget!;
+        ? CircularProgressIndicator()
+        : widget.loadingWidget!;
   }
 }

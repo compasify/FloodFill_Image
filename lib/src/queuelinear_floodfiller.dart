@@ -12,20 +12,15 @@ import 'package:image/image.dart' as img;
 extension ImageColor on Color {
   img.ColorInt16 toImageColor() {
     Uint8List bytes = Uint8List.fromList([
-      this.red,
-      this.green,
-      this.blue,
-      this.alpha,
+      this.r.toInt(),
+      this.g.toInt(),
+      this.b.toInt(),
+      this.a.toInt(),
     ]);
     Int16List intList = Int16List.fromList(
       bytes.map((e) => e.toSigned(16)).toList(),
     );
-    return img.ColorInt16.rgba(
-      intList[0],
-      intList[1],
-      intList[2],
-      intList[3],
-    );
+    return img.ColorInt16.rgba(intList[0], intList[1], intList[2], intList[3]);
   }
 }
 
@@ -37,6 +32,7 @@ class QueueLinearFloodFiller {
   int _cachedHeight = -1;
   img.ColorInt16 _fillColor = img.ColorInt16.rgba(0, 0, 0, 0);
   int _tolerance = 8;
+  int _brightnessThreshold = 128; // 0-255, pixels below this are "dark"
   img.ColorInt16 _startColor = img.ColorInt16.rgba(0, 0, 0, 0);
   List<bool>? _pixelsChecked;
   Queue<_FloodFillRange>? _ranges;
@@ -66,6 +62,12 @@ class QueueLinearFloodFiller {
   void setTolerance(int value) {
     _tolerance = value.clamp(0, 100);
   }
+
+  void setBrightnessThreshold(int threshold) {
+    _brightnessThreshold = threshold.clamp(0, 255);
+  }
+
+  int getBrightnessThreshold() => _brightnessThreshold;
 
   Color getFillColor() {
     return Color.fromARGB(
@@ -197,12 +199,17 @@ class QueueLinearFloodFiller {
   }
 
   // Sees if a pixel is within the color tolerance range.
+  // Also filters out dark pixels (below brightness threshold).
   bool _checkPixel(int x, int y) {
     img.Pixel pixelColor = image!.getPixelSafe(x, y);
     int red = pixelColor.getChannel(img.Channel.red).toInt();
     int green = pixelColor.getChannel(img.Channel.green).toInt();
     int blue = pixelColor.getChannel(img.Channel.blue).toInt();
     int alpha = pixelColor.getChannel(img.Channel.alpha).toInt();
+
+    // Skip dark pixels - don't spread fill into dark areas (e.g., black outlines)
+    int brightness = ((red + green + blue) / 3).round();
+    if (brightness < _brightnessThreshold) return false;
 
     return (red >= (_startColor.r - _tolerance) &&
         red <= (_startColor.r + _tolerance) &&
