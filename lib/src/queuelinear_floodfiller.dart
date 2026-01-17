@@ -12,10 +12,10 @@ import 'package:image/image.dart' as img;
 extension ImageColor on Color {
   img.ColorInt16 toImageColor() {
     Uint8List bytes = Uint8List.fromList([
-      this.r.toInt(),
-      this.g.toInt(),
-      this.b.toInt(),
-      this.a.toInt(),
+      (this.r * 255).toInt(),
+      (this.g * 255).toInt(),
+      (this.b * 255).toInt(),
+      (this.a * 255).toInt(),
     ]);
     Int16List intList = Int16List.fromList(
       bytes.map((e) => e.toSigned(16)).toList(),

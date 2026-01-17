@@ -5,10 +5,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image/image.dart' as img;
 
-import 'queuelinear_floodfiller.dart';
+import 'scanline_floodfiller.dart';
 
 class FloodFillPainter extends CustomPainter {
-  QueueLinearFloodFiller? _filler;
+  ScanlineFloodFiller? _filler;
   double? _width;
   double? _height;
   bool? _isFillActive;
@@ -40,7 +40,7 @@ class FloodFillPainter extends CustomPainter {
     ))!;
     var bytes = byteData.buffer.asUint8List();
     img.Image decoded = img.decodeImage(bytes)!;
-    _filler = QueueLinearFloodFiller(decoded, fillColor);
+    _filler = ScanlineFloodFiller(decoded, fillColor);
     onInitialize!();
   }
 
